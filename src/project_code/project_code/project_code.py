@@ -85,8 +85,8 @@ def BasicAlgorithmMultivariateCovarianceMatrix(iterations, m):
 
     Returns
     -------
-    theta : float
-            This is the posterior estimation of theta we've computed.
+    Sigma : numpy array
+            This is the posterior estimation of the covariance matrix we've computed.
     """
 
     # x1 and x2 contain the original censored data while x contains both, duplicated m times
@@ -127,12 +127,13 @@ def BasicAlgorithmMultivariateCovarianceMatrix(iterations, m):
     truePosterior = ((1 - (rho ** 2)) ** 4.5) / ((1.25 - (rho ** 2)) ** 8)
     # Scale the true posterior distribution
     truePosterior *= 3
+    truePosterior -= (np.max(truePosterior) + np.min(truePosterior)) / 2
 
     sns.kdeplot(rho)
     sns.kdeplot(truePosterior)
     sns.plt.show()
 
-    return rho, truePosterior
+    return Sigma
     
 
 if __name__ == "__main__":
@@ -140,11 +141,11 @@ if __name__ == "__main__":
     startTime = time.time()
 
     iterations = 10
-    m = 6400
+    m = 1600
     #res = BasicAlgorithmLinkageExample(iterations, m)
-    iterations = 10
+    iterations = 15
     m = 6400
-    rho, truePosterior = BasicAlgorithmMultivariateCovarianceMatrix(iterations, m)
+    res = BasicAlgorithmMultivariateCovarianceMatrix(iterations, m)
 
     # Stop the timer and print the exectution time
     print("Exec: --- %s seconds ---" % (time.time() - startTime))
