@@ -10,9 +10,9 @@ __status__ = "Production"
 
 from numpy.random import binomial
 from numpy.random import uniform
-from numpy.random import beta
 from numpy.random import chisquare
 from numpy.random import normal
+from numpy.random import randint
 from scipy import stats
 import numpy as np
 import seaborn as sns
@@ -53,19 +53,22 @@ def BasicAlgorithmLinkageExample(iterations, m):
         nu_1 = z + y[3] + 1
         nu_2 = y[1] + y[2] + 1
 
-        # Should be:
-        #g_i = np.array([np.mean(stats.beta.pdf(g_i[i], nu_1, nu_2)) for i in range(m)])
-        # but doesn't work
-        g_i = np.array([np.mean(beta(nu_1[i], nu_2, m)) for i in range(m)])
+        # Select a distribution from the mixture of beta distributions and do it m times to get m samples
+        idx = randint(0, m, size = m)
+
+        # Draw a sample for theta from the mixture of beta and do it m times
+        g_i = stats.beta.rvs(nu_1[idx], nu_2, size = m)
 
     # Compute the true posterior distribution
     truePosterior = (((2 + g_i) ** y[0]) * ((1 - g_i) ** (y[1] + y[2])) * (g_i ** y[3]))
     # Scale the true posterior distribution
     truePosterior *= (np.mean(g_i) / np.mean(truePosterior))
     
-    sns.kdeplot(g_i)
-    sns.kdeplot(truePosterior)
-    sns.kdeplot(beta(nu_1, nu_2, m))
+    sns.kdeplot(g_i, color = "b")
+    sns.kdeplot(truePosterior, color = "g")
+    ax = sns.kdeplot(stats.beta.rvs(nu_1, nu_2, size = m), color = "r")
+    ax.set(xlabel = "Theta", ylabel = "Density")
+    sns.plt.title("Posterior distribution of theta")
     sns.plt.show()
 
     return g_i
@@ -129,23 +132,31 @@ def BasicAlgorithmMultivariateCovarianceMatrix(iterations, m):
     truePosterior *= 3
     truePosterior -= (np.max(truePosterior) + np.min(truePosterior)) / 2
 
-    sns.kdeplot(rho)
-    sns.kdeplot(truePosterior)
+    sns.kdeplot(rho, color = "b")
+    ax = sns.kdeplot(truePosterior, color = "g")
+    ax.set(xlabel = "Rho", ylabel = "Density")
+    sns.plt.title("Posterior density of the correlation coefficient")
     sns.plt.show()
 
     return Sigma
     
 
 if __name__ == "__main__":
+    # Set the PRNG's seed
+    np.random.seed(45)
+
     # Start the timer
     startTime = time.time()
 
+    # For linkage example
     iterations = 10
     m = 1600
-    #res = BasicAlgorithmLinkageExample(iterations, m)
+    res = BasicAlgorithmLinkageExample(iterations, m)
+
+    # For multivariate covariance matrix
     iterations = 15
     m = 6400
-    res = BasicAlgorithmMultivariateCovarianceMatrix(iterations, m)
+    #res = BasicAlgorithmMultivariateCovarianceMatrix(iterations, m)
 
     # Stop the timer and print the exectution time
     print("Exec: --- %s seconds ---" % (time.time() - startTime))
