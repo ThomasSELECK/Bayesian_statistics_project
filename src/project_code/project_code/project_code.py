@@ -17,8 +17,10 @@ from scipy import stats
 import numpy as np
 import seaborn as sns
 import time
+from operator import itemgetter
+from scipy.stats import gaussian_kde
 
-def BasicAlgorithmLinkageExample(iterations, m):
+def BasicAlgorithmLinkageExample(iterations, m, y, displayPlot):
     """
     This function implements the basic algorithm presented in the paper (Section 2). 
     It's basically an EM algorithm to compute the posterior distribution of a parameter theta.
@@ -31,23 +33,27 @@ def BasicAlgorithmLinkageExample(iterations, m):
     m : positive integer
             This represents the number of sample we'll use.
 
+    y : list
+            This represents the observed data.
+
+    displayPlot : boolean
+            If true, the plot is displayed. Otherwise, it is save as a png file in the current directory.
+
     Returns
     -------
     theta : float
             This is the posterior estimation of theta we've computed.
     """
 
-    y = [125, 18, 20, 34]
-    #y = [13, 2, 2, 3]
-    #y = [14, 0, 1, 5]
+    print("Computing posterior distribution for the Genetic Linkage example with y = " + str(y) + " ...")
 
     # Step 1: Generate a sample z_1, ...z_m from the current approximation of theta
     ## Step 1.1. Generate theta from g_i(theta)
-    g_i = uniform(size = m)
+    theta = uniform(size = m)
 
     for i in range(iterations):
         ## Step 1.2. Generate z from p(z|phi, y) where phi is the value obtained in Step 1.1.
-        z = binomial(y[0], g_i / (g_i + 2), m)
+        z = binomial(y[0], theta / (theta + 2), m)
 
         # Step 2: Update the current approximation of p(theta|y)
         nu_1 = z + y[3] + 1
@@ -57,23 +63,32 @@ def BasicAlgorithmLinkageExample(iterations, m):
         idx = randint(0, m, size = m)
 
         # Draw a sample for theta from the mixture of beta and do it m times
-        g_i = stats.beta.rvs(nu_1[idx], nu_2, size = m)
+        theta = stats.beta.rvs(nu_1[idx], nu_2, size = m)
 
     # Compute the true posterior distribution
-    truePosterior = (((2 + g_i) ** y[0]) * ((1 - g_i) ** (y[1] + y[2])) * (g_i ** y[3]))
-    # Scale the true posterior distribution
-    truePosterior *= (np.mean(g_i) / np.mean(truePosterior))
+    x = uniform(size = m) # Silent variable to plot the true posterior.
+    truePosterior = (((2 + x) ** y[0]) * ((1 - x) ** (y[1] + y[2])) * (x ** y[3]))
     
-    sns.kdeplot(g_i, color = "b")
-    sns.kdeplot(truePosterior, color = "g")
-    ax = sns.kdeplot(stats.beta.rvs(nu_1, nu_2, size = m), color = "r")
-    ax.set(xlabel = "Theta", ylabel = "Density")
-    sns.plt.title("Posterior distribution of theta")
-    sns.plt.show()
+    # Scale the true posterior distribution: Quick and dirty way to do this
+    truePosterior *= np.max(gaussian_kde(theta).pdf(x)) / np.max(truePosterior)
 
-    return g_i
+    x, truePosterior = [list(x) for x in zip(*sorted(zip(x, truePosterior), key=itemgetter(0)))]
+    
+    sns.distplot(theta, hist = False, kde = True, color = "b").set(xlim = (0, 1))
+    sns.distplot(stats.beta.rvs(nu_1, nu_2, size = m), hist = False, kde = True, color = "r").set(xlim = (0, 1), xlabel = "Theta", ylabel = "Density")
+    sns.plt.plot(x, truePosterior, color = "g")
+    sns.plt.title("Genetic linkage example: Posterior distribution of theta with y = " + str(y))
 
-def BasicAlgorithmMultivariateCovarianceMatrix(iterations, m):
+    if displayPlot:
+        sns.plt.show()
+        sns.plt.cla()
+    else:
+        sns.plt.savefig("genetic_linkage_example_" + "_".join([str(i) for i in y]) + ".png", dpi = 150)
+        sns.plt.cla()
+
+    return theta
+
+def BasicAlgorithmMultivariateCovarianceMatrix(iterations, m, displayPlot):
     """
     This function implements the basic algorithm presented in the paper (Section 2). 
     It's basically an EM algorithm to compute the posterior distribution of a parameter theta.
@@ -86,11 +101,16 @@ def BasicAlgorithmMultivariateCovarianceMatrix(iterations, m):
     m : positive integer
             This represents the number of sample we'll use.
 
+    displayPlot : boolean
+            If true, the plot is displayed. Otherwise, it is save as a png file in the current directory.
+
     Returns
     -------
     Sigma : numpy array
             This is the posterior estimation of the covariance matrix we've computed.
     """
+
+    print("Computing posterior distribution for the functionals of the multivariate normal covariance matrix example...")
 
     # x1 and x2 contain the original censored data while x contains both, duplicated m times
     x1 = np.array([1, 1, -1, -1, 2, 2, -2, -2, np.nan, np.nan, np.nan, np.nan])
@@ -127,16 +147,24 @@ def BasicAlgorithmMultivariateCovarianceMatrix(iterations, m):
         rho = Sigma[:, 1, 0] / np.sqrt(Sigma[:, 0, 0] * Sigma[:, 1, 1])
 
     # Compute the true posterior distribution
-    truePosterior = ((1 - (rho ** 2)) ** 4.5) / ((1.25 - (rho ** 2)) ** 8)
-    # Scale the true posterior distribution
-    truePosterior *= 3
-    truePosterior -= (np.max(truePosterior) + np.min(truePosterior)) / 2
+    x = uniform(low = -1, size = m)
+    truePosterior = ((1 - (x ** 2)) ** 4.5) / ((1.25 - (x ** 2)) ** 8)
+    
+    # Scale the true posterior distribution: Quick and dirty way to do this
+    truePosterior *= np.max(gaussian_kde(rho).pdf(x)) / np.max(truePosterior)
 
-    sns.kdeplot(rho, color = "b")
-    ax = sns.kdeplot(truePosterior, color = "g")
-    ax.set(xlabel = "Rho", ylabel = "Density")
-    sns.plt.title("Posterior density of the correlation coefficient")
-    sns.plt.show()
+    x, truePosterior = [list(x) for x in zip(*sorted(zip(x, truePosterior), key=itemgetter(0)))]
+    
+    sns.distplot(rho, hist = False, kde = True, color = "b").set(xlim = (-1.5, 1.5), xlabel = "Rho", ylabel = "Density")
+    sns.plt.plot(x, truePosterior, color = "g")
+    sns.plt.title("Functionals of the multivariate normal covariance matrix: Posterior density of the correlation coefficient")
+
+    if displayPlot:
+        sns.plt.show()
+        sns.plt.cla()
+    else:
+        sns.plt.savefig("multivariate_normal_covariance_matrix_example.png", dpi = 150)
+        sns.plt.cla()
 
     return Sigma
     
@@ -148,15 +176,21 @@ if __name__ == "__main__":
     # Start the timer
     startTime = time.time()
 
+    # Do you want to see plots or save them to files?
+    displayPlots = False
+
     # For linkage example
-    iterations = 10
+    iterations = 100
     m = 1600
-    res = BasicAlgorithmLinkageExample(iterations, m)
+    data = [[125, 18, 20, 34], [13, 2, 2, 3], [14, 0, 1, 5]]
+
+    for y in data:
+        res = BasicAlgorithmLinkageExample(iterations, m, y, displayPlots)
 
     # For multivariate covariance matrix
     iterations = 15
     m = 6400
-    #res = BasicAlgorithmMultivariateCovarianceMatrix(iterations, m)
+    res = BasicAlgorithmMultivariateCovarianceMatrix(iterations, m, displayPlots)
 
     # Stop the timer and print the exectution time
     print("Exec: --- %s seconds ---" % (time.time() - startTime))
