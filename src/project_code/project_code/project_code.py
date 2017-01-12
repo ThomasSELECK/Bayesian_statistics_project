@@ -88,6 +88,86 @@ def BasicAlgorithmLinkageExample(iterations, m, y, displayPlot):
 
     return theta
 
+def DirichletSamplingProcessLinkageExample(iterations, m, y, epsilon, displayPlot):
+    """
+    This function implements the Dirichlet sampling process presented in the paper (Section 4). 
+    It's basically an EM algorithm to compute the posterior distribution of a parameter theta. We use
+    the Dirichlet sampling when the sampling of theta from p(theta|x) is not simple.
+
+    Parameters
+    ----------
+    iterations : positive integer
+            This number is the number of iterations we want for our algorithm.
+
+    m : positive integer
+            This represents the number of sample we'll use.
+
+    y : list
+            This represents the augmented data.
+
+    displayPlot : boolean
+            If true, the plot is displayed. Otherwise, it is save as a png file in the current directory.
+
+    Returns
+    -------
+    theta : float
+            This is the posterior estimation of theta we've computed.
+    """
+
+    print("Computing posterior distribution for the Genetic Linkage example with y = " + str(y) + " using DSP...")
+
+    # Step 1: Generate a sample z_1, ...z_m from the current approximation of theta
+    ## Step 1.1. Generate theta from g_i(theta)
+    theta = uniform(size = m)
+
+    for i in range(iterations):
+        ## Step 1.2. Generate z from p(z|phi, y) where phi is the value obtained in Step 1.1.
+        z = binomial(y[0], theta / (theta + 2), m)
+
+        # Step 2: Update the current approximation of p(theta|y)
+        ## Sample observations from Dirichlet distribution
+        dirichletSamples = []
+        for i in range(m):
+            augmented_data = [z[i] + 1, y[1] + 1, y[2] + 1, y[3] + 1] # We add 1 to ensure each number is greater than 0
+            dirichletSamples.append(stats.dirichlet.rvs(augmented_data)[0] / 2)
+        
+        dirichletSamples = np.array(dirichletSamples)
+
+        ## Compute theta_hat
+        theta_hat_array = []
+        for sample in dirichletSamples:
+            theta_hat = 2 * (sample[0] + sample[3])
+            p_hat = np.array([theta_hat / 4, 1 / 4 - theta_hat / 4, 1 / 4 - theta_hat / 4, theta_hat / 4])
+
+            if np.sqrt(np.sum((np.array(sample) - p_hat) ** 2)) < epsilon:
+                theta_hat_array.append(theta_hat)
+                
+        m = len(theta_hat_array)
+        theta_hat_array = np.array(theta_hat_array)
+        theta = theta_hat_array
+
+    # Compute the true posterior distribution
+    x = uniform(size = m) # Silent variable to plot the true posterior.
+    truePosterior = (((2 + x) ** y[0]) * ((1 - x) ** (y[1] + y[2])) * (x ** y[3]))
+    
+    # Scale the true posterior distribution: Quick and dirty way to do this
+    truePosterior *= np.max(gaussian_kde(theta).pdf(x)) / np.max(truePosterior)
+
+    x, truePosterior = [list(x) for x in zip(*sorted(zip(x, truePosterior), key=itemgetter(0)))]
+    
+    sns.distplot(theta, hist = False, kde = True, color = "b").set(xlim = (0, 1))
+    sns.plt.plot(x, truePosterior, color = "g")
+    sns.plt.title("Genetic linkage example: Posterior distribution of theta with y = " + str(y) + " using DSP")
+
+    if displayPlot:
+        sns.plt.show()
+        sns.plt.cla()
+    else:
+        sns.plt.savefig("genetic_linkage_example_DSP" + "_".join([str(i) for i in y]) + ".png", dpi = 150)
+        sns.plt.cla()
+
+    return theta
+
 def BasicAlgorithmMultivariateCovarianceMatrix(iterations, m, displayPlot):
     """
     This function implements the basic algorithm presented in the paper (Section 2). 
@@ -177,7 +257,15 @@ if __name__ == "__main__":
     startTime = time.time()
 
     # Do you want to see plots or save them to files?
-    displayPlots = False
+    displayPlots = True
+
+    # For linkage example
+    iterations = 20
+    m = 10000
+    y = [3, 2, 2, 3]
+    epsilon = 0.20
+
+    res = DirichletSamplingProcessLinkageExample(iterations, m, y, epsilon, displayPlots)
 
     # For linkage example
     iterations = 100
