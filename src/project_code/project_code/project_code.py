@@ -214,11 +214,14 @@ def BasicAlgorithmMultivariateCovarianceMatrix(iterations, m, displayPlot):
                     x[i, 0, obs_idx] = normal(rho[i] * (sigma1[i] / sigma2[i]) * x2[obs_idx], (sigma1[i] ** 2) * (1 - (rho[i] ** 2)))
 
         # Compute the covariance matrix
-        covarianceMatrix = np.array([np.cov(x[i]) / (np.std(x[i, 0]) * np.std(x[i, 1])) for i in range(m)])
+        covarianceMatrix = np.array([np.cov(x[i]) for i in range(m)])
 
         # Step 2: Update the current approximation of p(Sigma|y)
-        ## Generate m observations from the mixture of inverted Wishart distribution
-        Sigma = np.array([stats.invwishart.rvs(df = 3, scale = covarianceMatrix[i]) for i in range(m)])
+        # Select a distribution from the mixture of inverted Wishart distributions and do it m times to get m samples
+        idx = randint(0, m, size = m)
+
+        # Draw a sample for Sigma from the mixture of inverted Wishart distributions and do it m times
+        Sigma = np.array([stats.invwishart.rvs(df = 4, scale = covarianceMatrix[idx[i]]) for i in range(m)])
 
         ## We update the values of sigma1, sigma2 and rho
         sigma1 = np.sqrt(Sigma[:, 0, 0])
@@ -260,14 +263,6 @@ if __name__ == "__main__":
     displayPlots = True
 
     # For linkage example
-    iterations = 20
-    m = 10000
-    y = [3, 2, 2, 3]
-    epsilon = 0.20
-
-    res = DirichletSamplingProcessLinkageExample(iterations, m, y, epsilon, displayPlots)
-
-    # For linkage example
     iterations = 100
     m = 1600
     data = [[125, 18, 20, 34], [13, 2, 2, 3], [14, 0, 1, 5]]
@@ -276,9 +271,17 @@ if __name__ == "__main__":
         res = BasicAlgorithmLinkageExample(iterations, m, y, displayPlots)
 
     # For multivariate covariance matrix
-    iterations = 15
+    iterations = 4
     m = 6400
     res = BasicAlgorithmMultivariateCovarianceMatrix(iterations, m, displayPlots)
+
+    # For linkage example
+    iterations = 20
+    m = 10000
+    y = [3, 2, 2, 3]
+    epsilon = 0.20
+
+    res = DirichletSamplingProcessLinkageExample(iterations, m, y, epsilon, displayPlots)
 
     # Stop the timer and print the exectution time
     print("Exec: --- %s seconds ---" % (time.time() - startTime))
