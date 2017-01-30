@@ -214,7 +214,7 @@ def BasicAlgorithmMultivariateCovarianceMatrix(iterations, m, displayPlot):
                     x[i, 0, obs_idx] = normal(rho[i] * (sigma1[i] / sigma2[i]) * x2[obs_idx], (sigma1[i] ** 2) * (1 - (rho[i] ** 2)))
 
         # Compute the covariance matrix
-        covarianceMatrix = np.array([np.cov(x[i]) for i in range(m)])
+        covarianceMatrix = np.array([np.cov(x[i]) / x1.shape[0] for i in range(m)])
 
         # Step 2: Update the current approximation of p(Sigma|y)
         # Select a distribution from the mixture of inverted Wishart distributions and do it m times to get m samples
@@ -227,7 +227,7 @@ def BasicAlgorithmMultivariateCovarianceMatrix(iterations, m, displayPlot):
         sigma1 = np.sqrt(Sigma[:, 0, 0])
         sigma2 = np.sqrt(Sigma[:, 1, 1])
         ### Compute the associated correlation coefficient for each observation
-        rho = Sigma[:, 1, 0] / np.sqrt(Sigma[:, 0, 0] * Sigma[:, 1, 1])
+        rho = Sigma[:, 1, 0] / (sigma1 * sigma2)
 
     # Compute the true posterior distribution
     x = uniform(low = -1, size = m)
@@ -271,7 +271,7 @@ if __name__ == "__main__":
         res = BasicAlgorithmLinkageExample(iterations, m, y, displayPlots)
 
     # For multivariate covariance matrix
-    iterations = 4
+    iterations = 15
     m = 6400
     res = BasicAlgorithmMultivariateCovarianceMatrix(iterations, m, displayPlots)
 
